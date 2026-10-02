@@ -1,0 +1,37 @@
+name: Build Mod
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  buildJar:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: 'gradle' # faster
+
+    - name: Set up Android SDK PATH
+      run: |
+        echo "${ANDROID_HOME}/build-tools/30.0.3" >> $GITHUB_PATH
+
+    - name: Build mod jar
+      run: |
+        chmod +x ./gradlew
+        ./gradlew deploy
+
+    - name: Upload built jar file
+      uses: actions/upload-artifact@v4
+      with:
+        name: Mindustry-Mod-Jar
+        path: build/libs/*.jar

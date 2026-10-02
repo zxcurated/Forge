@@ -1,0 +1,15 @@
+displayName: Forge
+name: forge
+author: J7
+
+subtitle: Hello World!
+description: Hi Wrl!
+
+main: forge.ForgeLoader
+repo: zxcurated/Forge
+
+version: test
+minGameVersion: 154
+
+java: true
+hidden: true
