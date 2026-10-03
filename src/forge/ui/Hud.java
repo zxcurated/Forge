@@ -1,26 +1,21 @@
 package forge.ui;
 
-import arc.Core;
 import arc.scene.Element;
 import arc.scene.Group;
 import arc.scene.event.Touchable;
-import arc.scene.ui.Label;
 import mindustry.Vars;
 
-public class Hud {
-    private static final Group hudGroup = new Group() {
-        {
-            this.fillParent = true;
-            this.touchable = Touchable.childrenOnly;
-        }
-    };
+public class Hud extends Group{
+    private static final Hud hud = new Hud();
 
     static {
-        String minimapName = Core.bundle.get("minimap");
-        Vars.ui.hudGroup.addChildBefore(
-            Vars.ui.hudGroup.find(
-                    element -> ((Label) ((Group) element).getChildren().get(0)).getText().equals(minimapName)),
-            hudGroup);
+        Vars.ui.hudGroup.addChildAfter(Vars.ui.hudGroup.find("minimap/position"), hud);
+    }
+    
+    private Hud(){
+        name = "forge-hud";
+        fillParent = true;
+        touchable = Touchable.childrenOnly;
     }
 
     public static void add(Element... elements) {
@@ -30,6 +25,6 @@ public class Hud {
     }
 
     public static void add(Element element) {
-        hudGroup.addChild(element);
+        hud.addChild(element);
     }
 }
