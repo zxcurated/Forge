@@ -25,146 +25,143 @@ import static mindustry.game.EventType.Trigger.update;
 public class SettingUtils {
     private static final Seq<SettingsCategory> categories = new Seq<>();
     
-    public static class ChangesHandler {
-        private static final Seq<Field> changeFieldListeners = new Seq<>();
-        private static final Seq<BindMethodListener> bindMethodListeners = new Seq<>();
-        private static final Seq<BindFieldListener> bindFieldListeners = new Seq<>();
-        
-        private static final Seq<Method> invokeOnUpdateList = new Seq<>();
-        
-        private record BindMethodListener(Method method, KeyBind bind) { }
-        private record BindFieldListener(Field field, KeyBind bind) { }
-        
-        static {
-            EventUtils.on(update, t -> {
-                if (Core.settings.modified()) {
-                    changeFieldListeners.each(field -> {
-                        var key = field.getDeclaringClass().getAnnotation(Category.class).key() + '.' + field.getName();
-                        var value = Core.settings.get(key, Core.settings.getDefault(key));
-                        if (!ReflectUtils.get(field).equals(value)) {
-                            ReflectUtils.set(field, value);
-                        }
-                    });
-                }
-                invokeOnUpdateList.each(ReflectUtils::invoke);
-            });
-            
-            Core.input.addProcessor(new InputProcessor() {
-                @Override
-                public boolean keyDown(KeyCode keycode) {
-                    for (var listener : bindMethodListeners) {
-                        if (listener.bind.value.key == keycode) {
-                            if (listener.method.getAnnotation(Bind.class).update()) {
-                                if(!invokeOnUpdateList.remove(listener.method)) {
-                                    invokeOnUpdateList.add(listener.method);
-                                }
-                            } else {
-                                ReflectUtils.invoke(listener.method);
-                            }
-                            return true;
-                        }
+    private static final Seq<Field> changeFieldListeners = new Seq<>();
+    private static final Seq<BindMethodListener> bindMethodListeners = new Seq<>();
+    private static final Seq<BindFieldListener> bindFieldListeners = new Seq<>();
+    
+    private static final Seq<Method> invokeOnUpdateList = new Seq<>();
+    
+    static {
+        EventUtils.on(update, t -> {
+            if (Core.settings.modified()) {
+                changeFieldListeners.each(field -> {
+                    var key = field.getDeclaringClass().getAnnotation(Category.class).key() + '.' + field.getName();
+                    var value = Core.settings.get(key, Core.settings.getDefault(key));
+                    if (!ReflectUtils.get(field).equals(value)) {
+                        ReflectUtils.set(field, value);
                     }
-                    for (var listener : bindFieldListeners) {
-                        if (listener.bind.value.key == keycode) {
-                            ReflectUtils.set(listener.field, !(boolean) ReflectUtils.get(listener.field));
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-            });
-        }
-        
-        // btw name = key
-        
-        private record SettingCell(String key, Object def, SettingsTable table) { }
-        
-        private static void register(Field field, Cons3<String, Object, SettingsTable> consumer) {
-            var category = field.getDeclaringClass().getAnnotation(Category.class);
-            var categoryKey = category.key();
-            var key = categoryKey + '.' + field.getName();
-            var def = ReflectUtils.get(field);
-            
-            Core.settings.defaults(key, def);
-            changeFieldListeners.add(field);
-            
-            var settingsCategory = categories.find(c -> c.name.equals(categoryKey));
-            if (settingsCategory == null) {
-                var drawable = Icon.icons.get(category.icon());
-                if (drawable == null) {
-                    drawable = Core.atlas.getDrawable(category.icon());
-                }
-                settingsCategory = new SettingsCategory(category.key(), drawable, t -> { });
-                Vars.ui.settings.getCategories().add(settingsCategory);
-                categories.add(settingsCategory);
+                });
             }
-            
-            ReflectUtils.set(field, Core.settings.get(key, Core.settings.getDefault(key)));
-            
-            consumer.get(key, def, settingsCategory.table);
-        }
+            invokeOnUpdateList.each(ReflectUtils::invoke);
+        });
         
-        @AnnotationConsumer
-        private static void bindConsumer(Bind bind, Member obj){
-            var categoryKey = obj.getDeclaringClass().getAnnotation(Category.class).key();
-            var name = obj.getName();
-            
-            if (obj instanceof Field field) {
-                var key = categoryKey + '.' + name;
-                var value = Core.settings.get(key, null);
-                if (value != null) {
-                    ReflectUtils.set(field, value);
+        Core.input.addProcessor(new InputProcessor() {
+            @Override
+            public boolean keyDown(KeyCode keycode) {
+                for (var listener : bindMethodListeners) {
+                    if (listener.bind.value.key == keycode) {
+                        if (listener.method.getAnnotation(Bind.class).update()) {
+                            if(!invokeOnUpdateList.remove(listener.method)) {
+                                invokeOnUpdateList.add(listener.method);
+                            }
+                        } else {
+                            ReflectUtils.invoke(listener.method);
+                        }
+                        return true;
+                    }
                 }
-                bindFieldListeners.add(new BindFieldListener(
-                    field, KeyBind.add(name, KeyCode.unset, categoryKey)
-                ));
-            } else if (obj instanceof Method method){
-                bindMethodListeners.add(new BindMethodListener(
-                    method, KeyBind.add(name, KeyCode.unset, categoryKey)
-                ));
-            } else throw new Error("dolbaeb");
+                for (var listener : bindFieldListeners) {
+                    if (listener.bind.value.key == keycode) {
+                        ReflectUtils.set(listener.field, !(boolean) ReflectUtils.get(listener.field));
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+    }
+    
+    private record BindMethodListener(Method method, KeyBind bind) { }
+    private record BindFieldListener(Field field, KeyBind bind) { }
+    private record SettingCell(String key, Object def, SettingsTable table) { }
+    
+    // btw name = key
+    
+    private static void register(Field field, Cons3<String, Object, SettingsTable> consumer) {
+        var category = field.getDeclaringClass().getAnnotation(Category.class);
+        var categoryKey = category.key();
+        var key = categoryKey + '.' + field.getName();
+        var def = ReflectUtils.get(field);
+        
+        Core.settings.defaults(key, def);
+        changeFieldListeners.add(field);
+        
+        var settingsCategory = categories.find(c -> c.name.equals(categoryKey));
+        if (settingsCategory == null) {
+            var drawable = Icon.icons.get(category.icon());
+            if (drawable == null) {
+                drawable = Core.atlas.getDrawable(category.icon());
+            }
+            settingsCategory = new SettingsCategory(category.key(), drawable, t -> { });
+            Vars.ui.settings.getCategories().add(settingsCategory);
+            categories.add(settingsCategory);
         }
         
-        @AnnotationConsumer
-        private static void checkboxConsumer(CheckBox checkbox, Field field) {
-            register(field, (key, def, table) ->
-                table.checkPref(key, (boolean) def)
-            );
-        }
+        ReflectUtils.set(field, Core.settings.get(key, Core.settings.getDefault(key)));
         
-        @AnnotationConsumer
-        private static void sliderConsumer(Slider slider, Field field) {
-            register(field, (key, def, table) ->
-                table.sliderPref(key, (int) def, slider.min(), slider.max(), slider.step(),
-                    slider.suffix().isEmpty() ? Integer::toString : i -> i + " " + Core.bundle.get(slider.suffix())
-                )
-            );
-        }
+        consumer.get(key, def, settingsCategory.table);
+    }
+    
+    @AnnotationConsumer
+    private static void bindConsumer(Bind bind, Member obj){
+        var categoryKey = obj.getDeclaringClass().getAnnotation(Category.class).key();
+        var name = obj.getName();
         
-        @Retention(RetentionPolicy.RUNTIME)
-        @Target(ElementType.TYPE)
-        public @interface Category {
-            String key();
-            String icon();
+        if (obj instanceof Field field) {
+            var key = categoryKey + '.' + name;
+            var value = Core.settings.get(key, null);
+            if (value != null) {
+                ReflectUtils.set(field, value);
+            }
+            bindFieldListeners.add(new BindFieldListener(
+                field, KeyBind.add(name, KeyCode.unset, categoryKey)
+            ));
+        } else {
+            bindMethodListeners.add(new BindMethodListener(
+                (Method) obj, KeyBind.add(name, KeyCode.unset, categoryKey)
+            ));
         }
-        
-        @Retention(RetentionPolicy.RUNTIME)
-        @Target({ElementType.FIELD, ElementType.METHOD})
-        public @interface Bind {
-            boolean update() default false; // for methods, subscribe for Trigger.update on bind and unsubscribe
-        }
-        
-        @Retention(RetentionPolicy.RUNTIME)
-        @Target(ElementType.FIELD)
-        public @interface CheckBox { }
-        
-        @Retention(RetentionPolicy.RUNTIME)
-        @Target(ElementType.FIELD)
-        public @interface Slider {
-            public int min();
-            public int max();
-            public int step() default 1;
-            public String suffix() default "";
-        }
+    }
+    
+    @AnnotationConsumer
+    private static void checkboxConsumer(CheckBox checkbox, Field field) {
+        register(field, (key, def, table) ->
+            table.checkPref(key, (boolean) def)
+        );
+    }
+    
+    @AnnotationConsumer
+    private static void sliderConsumer(Slider slider, Field field) {
+        register(field, (key, def, table) ->
+            table.sliderPref(key, (int) def, slider.min(), slider.max(), slider.step(),
+                slider.suffix().isEmpty() ? Integer::toString : i -> i + " " + Core.bundle.get(slider.suffix())
+            )
+        );
+    }
+    
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface Category {
+        String key();
+        String icon();
+    }
+    
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.FIELD, ElementType.METHOD})
+    public @interface Bind {
+        boolean update() default false; // for methods, subscribe for Trigger.update on bind and unsubscribe
+    }
+    
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface CheckBox { }
+    
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface Slider {
+        public int min();
+        public int max();
+        public int step() default 1;
+        public String suffix() default "";
     }
 }
