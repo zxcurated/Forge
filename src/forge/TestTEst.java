@@ -26,8 +26,12 @@ public class TestTEst {
         Log.info(67);
     }
     
-    @Bind(update = true)
+    @Bind(update = true, end = "xbatit")
     private static void sayMore67() {
         Log.info("nah i would " + 67);
+    }
+    
+    private static void xbatit() {
+        Log.info("xbatit");
     }
 }

@@ -50,9 +50,23 @@ public class SettingUtils {
             public boolean keyDown(KeyCode keycode) {
                 for (var listener : bindMethodListeners) {
                     if (listener.bind.value.key == keycode) {
-                        if (listener.method.getAnnotation(Bind.class).update()) {
-                            if(!invokeOnUpdateList.remove(listener.method)) {
+                        var bind = listener.method.getAnnotation(Bind.class);
+                        if (bind.update()) {
+                            String invokeNow = null;
+                            if (!invokeOnUpdateList.remove(listener.method)) {
                                 invokeOnUpdateList.add(listener.method);
+                                if (!bind.start().isEmpty()) {
+                                    invokeNow = bind.start();
+                                }
+                            } else if (!bind.end().isEmpty()) {
+                                invokeNow = bind.end();
+                            }
+                            if (invokeNow != null) {
+                                try {
+                                    ReflectUtils.invoke(listener.method.getDeclaringClass().getDeclaredMethod(invokeNow));
+                                } catch (NoSuchMethodException e) {
+                                    throw new Error(e);
+                                }
                             }
                         } else {
                             ReflectUtils.invoke(listener.method);
@@ -75,8 +89,6 @@ public class SettingUtils {
     private record BindFieldListener(Field field, KeyBind bind) { }
     private record SettingCell(String key, Object def, SettingsTable table) { }
     
-    // btw name = key
-    
     private static void register(Field field, Cons3<String, Object, SettingsTable> consumer) {
         var clazz = field.getDeclaringClass();
         var categoryKey = clazz.getSimpleName().replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase();
@@ -94,7 +106,7 @@ public class SettingUtils {
             if (drawable == null) {
                 drawable = Core.atlas.getDrawable(icon);
             }
-            settingsCategory = new SettingsCategory(categoryKey, drawable, t -> { });
+            settingsCategory = new SettingsCategory(Core.bundle.get(categoryKey), drawable, t -> { });
             Vars.ui.settings.getCategories().add(settingsCategory);
             categories.add(settingsCategory);
         }
@@ -150,7 +162,10 @@ public class SettingUtils {
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.FIELD, ElementType.METHOD})
     public @interface Bind {
-        boolean update() default false; // for methods, subscribe for Trigger.update on bind and unsubscribe
+        // for methods, subscribe for Trigger.update on bind and unsubscribe
+        boolean update() default false;
+        String start() default "";
+        String end() default "";
     }
     
     @Retention(RetentionPolicy.RUNTIME)
