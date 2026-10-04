@@ -16,7 +16,8 @@ import java.lang.annotation.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
-import java.util.zip.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public class ForgeLoader extends Mod {
 
@@ -50,7 +51,8 @@ public class ForgeLoader extends Mod {
                     if (name.endsWith(".class")) {
                         try {
                             // "dir/dir/ClassName.class" -> "dir.dir.ClassName"
-                            classes.add(Class.forName(name.substring(0, name.length() - 6).replace('/', '.'), false, loader));
+                            var clazz = Class.forName(name.substring(0, name.length() - 6).replace('/', '.'), false, loader);
+                            if(!clazz.isRecord()) classes.add(clazz);
                         } catch (ClassNotFoundException e) {
                             throw new Error(e);
                         }
@@ -87,16 +89,17 @@ public class ForgeLoader extends Mod {
             try {
                 for (Class<?> clazz : classes) {
                     if (!clazz.getSimpleName().isBlank())
-                        MethodHandles.lookup().ensureInitialized(clazz);
+                            MethodHandles.lookup().ensureInitialized(clazz);
                 }
             } catch (IllegalAccessException e) {
                 throw new ExceptionInInitializerError(e);
             }
 
             for (var consumer : consumers) {
-                annotatedMap.get(consumer.type).each(annotated -> {
-                    ReflectUtils.invoke(consumer.method, annotated.annotation, annotated.object);
-                });
+                var seq = annotatedMap.get(consumer.type);
+                if(seq != null) {
+                    seq.each(annotated -> ReflectUtils.invoke(consumer.method, annotated.annotation, annotated.object));
+                }
             }
         }
 
