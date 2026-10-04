@@ -23,13 +23,12 @@ import java.lang.reflect.Method;
 import static mindustry.game.EventType.Trigger.update;
 
 public class SettingUtils {
-    private static final Seq<SettingsCategory> categories = new Seq<>();
-    
     private static final Seq<Field> changeFieldListeners = new Seq<>();
     private static final Seq<BindMethodListener> bindMethodListeners = new Seq<>();
     private static final Seq<BindFieldListener> bindFieldListeners = new Seq<>();
     
     private static final Seq<Method> invokeOnUpdateList = new Seq<>();
+    private static final Seq<SettingsCategory> categories = new Seq<>();
     
     static {
         EventUtils.on(update, t -> {

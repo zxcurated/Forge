@@ -2,9 +2,9 @@ package forge;
 
 import arc.util.Log;
 import arc.util.Timer;
-import forge.util.SettingUtils.ChangesHandler.Bind;
-import forge.util.SettingUtils.ChangesHandler.Category;
-import forge.util.SettingUtils.ChangesHandler.Slider;
+import forge.util.SettingUtils.Bind;
+import forge.util.SettingUtils.Category;
+import forge.util.SettingUtils.Slider;
 
 @Category(key = "test", icon = "add")
 public class Test {
