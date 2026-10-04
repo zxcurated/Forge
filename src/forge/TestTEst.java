@@ -6,8 +6,8 @@ import forge.util.SettingUtils.Bind;
 import forge.util.SettingUtils.Category;
 import forge.util.SettingUtils.Slider;
 
-@Category(key = "test", icon = "add")
-public class Test {
+@Category(icon = "add")
+public class TestTEst {
     @Slider(min = 10, max = 95, step = 5)
     private static int number = 67;
     

@@ -6,6 +6,7 @@ import arc.input.InputProcessor;
 import arc.input.KeyBind;
 import arc.input.KeyCode;
 import arc.struct.Seq;
+import arc.util.Log;
 import forge.ForgeLoader.AnnotationConsumer;
 import mindustry.Vars;
 import mindustry.gen.Icon;
@@ -34,7 +35,7 @@ public class SettingUtils {
         EventUtils.on(update, t -> {
             if (Core.settings.modified()) {
                 changeFieldListeners.each(field -> {
-                    var key = field.getDeclaringClass().getAnnotation(Category.class).key() + '.' + field.getName();
+                    var key = field.getDeclaringClass().getSimpleName().replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase() + '.' + field.getName();
                     var value = Core.settings.get(key, Core.settings.getDefault(key));
                     if (!ReflectUtils.get(field).equals(value)) {
                         ReflectUtils.set(field, value);
@@ -77,8 +78,9 @@ public class SettingUtils {
     // btw name = key
     
     private static void register(Field field, Cons3<String, Object, SettingsTable> consumer) {
-        var category = field.getDeclaringClass().getAnnotation(Category.class);
-        var categoryKey = category.key();
+        var clazz = field.getDeclaringClass();
+        var categoryKey = clazz.getSimpleName().replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase();
+        Log.info(categoryKey);
         var key = categoryKey + '.' + field.getName();
         var def = ReflectUtils.get(field);
         
@@ -87,11 +89,12 @@ public class SettingUtils {
         
         var settingsCategory = categories.find(c -> c.name.equals(categoryKey));
         if (settingsCategory == null) {
-            var drawable = Icon.icons.get(category.icon());
+            var icon = clazz.getAnnotation(Category.class).icon();
+            var drawable = Icon.icons.get(icon);
             if (drawable == null) {
-                drawable = Core.atlas.getDrawable(category.icon());
+                drawable = Core.atlas.getDrawable(icon);
             }
-            settingsCategory = new SettingsCategory(category.key(), drawable, t -> { });
+            settingsCategory = new SettingsCategory(categoryKey, drawable, t -> { });
             Vars.ui.settings.getCategories().add(settingsCategory);
             categories.add(settingsCategory);
         }
@@ -103,7 +106,7 @@ public class SettingUtils {
     
     @AnnotationConsumer
     private static void bindConsumer(Bind bind, Member obj){
-        var categoryKey = obj.getDeclaringClass().getAnnotation(Category.class).key();
+        var categoryKey = obj.getDeclaringClass().getName();
         var name = obj.getName();
         
         if (obj instanceof Field field) {
@@ -141,7 +144,6 @@ public class SettingUtils {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
     public @interface Category {
-        String key();
         String icon();
     }
     
