@@ -1,6 +1,5 @@
 package forge;
 
-import arc.Core;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import forge.util.ArrayUtils;
@@ -16,6 +15,8 @@ import java.lang.annotation.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -39,7 +40,7 @@ public class ForgeLoader extends Mod {
 
         private synchronized void load() {
             ClassLoader loader = Vars.mods.mainLoader();
-            try (ZipFile zip = new ZipFile(Core.settings.getDataDirectory().child("mods/Forge.jar").file())) {
+            try (ZipFile zip = new ZipFile(URLDecoder.decode(ForgeLoader.class.getProtectionDomain().getCodeSource().getLocation().getFile(), StandardCharsets.UTF_8))) {
                 var iterator = zip.stream().iterator();
                 // skip for classes dir
                 while (!iterator.next().getName().equals("forge/"));
