@@ -94,7 +94,7 @@ public class SettingUtils {
     private record BindFieldListener(Field field, KeyBind bind) { }
     
     private static String toKebabCase(String text) {
-        return text.replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase(Locale.ROOT);
+        return text.replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z0-9])", "-").toLowerCase(Locale.ROOT);
     }
     
     private static String syncKey(String categoryKey) {
