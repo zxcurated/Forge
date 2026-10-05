@@ -38,7 +38,7 @@ public class SettingUtils {
         EventUtils.on(update, t -> {
             if (Core.settings.modified()) {
                 changeFieldListeners.each(field -> {
-                    var key = toKebab(field.getDeclaringClass().getSimpleName()) + '.' + field.getName();
+                    var key = toKebabCase(field.getDeclaringClass().getSimpleName()) + '.' + field.getName();
                     var value = Core.settings.get(key, Core.settings.getDefault(key));
                     if (!ReflectUtils.get(field).equals(value)) {
                         ReflectUtils.set(field, value);
@@ -92,9 +92,8 @@ public class SettingUtils {
     
     private record BindMethodListener(Method method, KeyBind bind) { }
     private record BindFieldListener(Field field, KeyBind bind) { }
-    private record SettingCell(String key, Object def, SettingsTable table) { }
     
-    private static String toKebab(String text) {
+    private static String toKebabCase(String text) {
         return text.replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase(Locale.ROOT);
     }
     
@@ -109,8 +108,8 @@ public class SettingUtils {
     
     private static void register(Field field, Cons3<String, Object, SettingsTable> consumer) {
         var clazz = field.getDeclaringClass();
-        var categoryKey = toKebab(clazz.getSimpleName());
-        var key = toKebab(field.getName());
+        var categoryKey = toKebabCase(clazz.getSimpleName());
+        var key = toKebabCase(field.getName());
         var def = ReflectUtils.get(field);
         
         Core.settings.defaults(key, def);
@@ -136,7 +135,7 @@ public class SettingUtils {
     
     @AnnotationConsumer
     private static void bindConsumer(Bind bind, Member obj){
-        var categoryKey = syncKey(toKebab(obj.getDeclaringClass().getSimpleName()));
+        var categoryKey = syncKey(toKebabCase(obj.getDeclaringClass().getSimpleName()));
         var name = obj.getName();
         
         if (obj instanceof Field field) {
@@ -146,11 +145,11 @@ public class SettingUtils {
                 ReflectUtils.set(field, value);
             }
             bindFieldListeners.add(new BindFieldListener(
-                field, KeyBind.add(toKebab(name), KeyCode.unset, categoryKey)
+                field, KeyBind.add(toKebabCase(name), KeyCode.unset, categoryKey)
             ));
         } else {
             bindMethodListeners.add(new BindMethodListener(
-                (Method) obj, KeyBind.add(toKebab(name), KeyCode.unset, categoryKey)
+                (Method) obj, KeyBind.add(toKebabCase(name), KeyCode.unset, categoryKey)
             ));
         }
     }
