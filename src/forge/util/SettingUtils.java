@@ -6,7 +6,6 @@ import arc.input.InputProcessor;
 import arc.input.KeyBind;
 import arc.input.KeyCode;
 import arc.struct.Seq;
-import arc.util.Log;
 import forge.ForgeLoader.AnnotationConsumer;
 import mindustry.Vars;
 import mindustry.gen.Icon;
@@ -20,6 +19,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.util.Locale;
 
 import static mindustry.game.EventType.Trigger.update;
 
@@ -31,11 +31,14 @@ public class SettingUtils {
     private static final Seq<Method> invokeOnUpdateList = new Seq<>();
     private static final Seq<SettingsCategory> categories = new Seq<>();
     
+    // anuke dolbaeb poetomu cached links
+    private static final Seq<String> categoryKeysLinks = new Seq<>();
+    
     static {
         EventUtils.on(update, t -> {
             if (Core.settings.modified()) {
                 changeFieldListeners.each(field -> {
-                    var key = field.getDeclaringClass().getSimpleName().replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase() + '.' + field.getName();
+                    var key = toKebab(field.getDeclaringClass().getSimpleName()) + '.' + field.getName();
                     var value = Core.settings.get(key, Core.settings.getDefault(key));
                     if (!ReflectUtils.get(field).equals(value)) {
                         ReflectUtils.set(field, value);
@@ -48,6 +51,8 @@ public class SettingUtils {
         Core.input.addProcessor(new InputProcessor() {
             @Override
             public boolean keyDown(KeyCode keycode) {
+                if (Core.scene.hasKeyboard()) return false;
+                
                 for (var listener : bindMethodListeners) {
                     if (listener.bind.value.key == keycode) {
                         var bind = listener.method.getAnnotation(Bind.class);
@@ -89,17 +94,30 @@ public class SettingUtils {
     private record BindFieldListener(Field field, KeyBind bind) { }
     private record SettingCell(String key, Object def, SettingsTable table) { }
     
+    private static String toKebab(String text) {
+        return text.replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase(Locale.ROOT);
+    }
+    
+    private static String syncKey(String categoryKey) {
+        for (var key : categoryKeysLinks)
+            if (key.equals(categoryKey))
+                return key;
+        
+        categoryKeysLinks.add(categoryKey);
+        return categoryKey;
+    }
+    
     private static void register(Field field, Cons3<String, Object, SettingsTable> consumer) {
         var clazz = field.getDeclaringClass();
-        var categoryKey = clazz.getSimpleName().replaceAll("(?<=[а-яa-z])(?=[А-ЯA-Z])", "-").toLowerCase();
-        Log.info(categoryKey);
-        var key = categoryKey + '.' + field.getName();
+        var categoryKey = toKebab(clazz.getSimpleName());
+        var key = toKebab(field.getName());
         var def = ReflectUtils.get(field);
         
         Core.settings.defaults(key, def);
         changeFieldListeners.add(field);
         
         var settingsCategory = categories.find(c -> c.name.equals(categoryKey));
+        
         if (settingsCategory == null) {
             var icon = clazz.getAnnotation(Category.class).icon();
             var drawable = Icon.icons.get(icon);
@@ -118,7 +136,7 @@ public class SettingUtils {
     
     @AnnotationConsumer
     private static void bindConsumer(Bind bind, Member obj){
-        var categoryKey = obj.getDeclaringClass().getName();
+        var categoryKey = syncKey(toKebab(obj.getDeclaringClass().getSimpleName()));
         var name = obj.getName();
         
         if (obj instanceof Field field) {
@@ -128,11 +146,11 @@ public class SettingUtils {
                 ReflectUtils.set(field, value);
             }
             bindFieldListeners.add(new BindFieldListener(
-                field, KeyBind.add(name, KeyCode.unset, categoryKey)
+                field, KeyBind.add(toKebab(name), KeyCode.unset, categoryKey)
             ));
         } else {
             bindMethodListeners.add(new BindMethodListener(
-                (Method) obj, KeyBind.add(name, KeyCode.unset, categoryKey)
+                (Method) obj, KeyBind.add(toKebab(name), KeyCode.unset, categoryKey)
             ));
         }
     }
