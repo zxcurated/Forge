@@ -23,7 +23,7 @@ import java.util.Locale;
 
 import static mindustry.game.EventType.Trigger.update;
 
-public class SettingUtils {
+public class SettingsAnnotations {
     private static final Seq<Field> changeFieldListeners = new Seq<>();
     private static final Seq<BindMethodListener> bindMethodListeners = new Seq<>();
     private static final Seq<BindFieldListener> bindFieldListeners = new Seq<>();
@@ -173,15 +173,18 @@ public class SettingUtils {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
     public @interface Category {
+        /** name of icon in {@link Icon#icons} or {@link arc.graphics.g2d.TextureAtlas#drawables Core.atlas.drawables}*/
         String icon();
     }
     
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.FIELD, ElementType.METHOD})
     public @interface Bind {
-        // for methods, subscribe for Trigger.update on bind and unsubscribe
+        /** for methods, subscribe on update and unsubscribe */
         boolean update() default false;
+        /** when subscribing on update, invoke this method in class */
         String start() default "";
+        /** when unsubscribing on update, invoke this method in class */
         String end() default "";
     }
     
