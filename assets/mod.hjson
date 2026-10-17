@@ -5,7 +5,7 @@ author: J7
 subtitle: Hello World!
 description: Hi Wrl!
 
-main: forge.ForgeLoader
+main: forge.bootstrap.ForgeMod
 repo: zxcurated/Forge
 
 version: test
