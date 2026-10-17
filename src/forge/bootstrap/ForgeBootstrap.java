@@ -82,4 +82,15 @@ class ForgeBootstrap {
             }
         }
     }
+    
+    private static LoadedMod copyLoadedMod(LoadedMod orig) {
+        return new LoadedMod(orig.file, orig.root, new Forge(), orig.loader, orig.meta);
+    }
+    
+    private static void removeClientLoadEvent() {
+        Core.app.post(() ->
+            Reflect.<ObjectMap<Object, Seq<Cons<?>>>>get(Events.class, "events")
+                .remove(ClientLoadEvent.class)
+        );
+    }
 }
