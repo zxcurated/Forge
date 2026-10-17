@@ -48,11 +48,8 @@ class ForgeBootstrap {
     }
     
     private void replaceLoadedMod() {
-        Seq<LoadedMod> seq = Vars.mods.list();
-        LoadedMod orig = Vars.mods.getMod(ForgeMod.class);
-        LoadedMod newMod = new LoadedMod(
-            orig.file, orig.root, new Forge(), orig.loader, orig.meta
-        );
+        var seq = Vars.mods.list();
+        var orig = Vars.mods.getMod(ForgeMod.class);
         seq.remove(orig);
         seq.add(newMod);
     }
