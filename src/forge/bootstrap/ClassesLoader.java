@@ -59,7 +59,7 @@ class ClassesLoader {
         ClassLoader loader = ClassesLoader.class.getClassLoader();
         for (ZipEntry entry : forgePackageEntries(zip)) {
             var clazz = classForName(entry.getName(), loader);
-            initializeIfStatic(clazz);
+            checkStaticMark(clazz);
             classes.add(clazz);
         }
     }
@@ -72,7 +72,7 @@ class ClassesLoader {
         }
     }
 
-    private void initializeIfStatic(Class<?> clazz) {
+    private void checkStaticMark(Class<?> clazz) {
         if (clazz.getAnnotation(Static.class) != null) {
             try {
                 initialize(clazz);
