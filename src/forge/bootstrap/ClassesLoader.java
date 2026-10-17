@@ -14,7 +14,12 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 class ClassesLoader {
+    final Lookup lookup;
     Class<?>[] classes;
+    
+    ClassesLoader(Lookup lookup) {
+        this.lookup = lookup;
+    }
     
     void loadClasses() {
         try (ZipFile zip = forgeZipFile()) {

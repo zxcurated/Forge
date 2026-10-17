@@ -10,9 +10,16 @@ import forge.Forge;
 import mindustry.Vars;
 import mindustry.game.EventType.ClientLoadEvent;
 import mindustry.mod.Mods.LoadedMod;
+import sun.misc.Unsafe;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.Field;
 
 class ForgeBootstrap {
-    private final ClassesLoader classesLoader = new ClassesLoader();
+    private final Lookup lookup = MethodHandles.lookup();
+    
+    private final ClassesLoader classesLoader = new ClassesLoader(lookup);
     private final AnnotationsCache annotationsCache = new AnnotationsCache();
     
     private boolean isLoaded = false;
@@ -43,7 +50,7 @@ class ForgeBootstrap {
     
     private void clientLoadedEvent() {
         waitLock();
-        replaceLoadedMod();
+        replaceModMain();
         clientLoaded();
     }
     
@@ -80,10 +87,6 @@ class ForgeBootstrap {
                 throw new RuntimeException(e);
             }
         }
-    }
-    
-    private static LoadedMod copyLoadedMod(LoadedMod orig) {
-        return new LoadedMod(orig.file, orig.root, new Forge(), orig.loader, orig.meta);
     }
     
     private static void removeClientLoadEvent() {
