@@ -16,7 +16,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Field;
 
-class ForgeBootstrap {
+public class ForgeBootstrap extends Mod {
     private final Lookup lookup = MethodHandles.lookup();
     
     private final ClassesLoader classesLoader = new ClassesLoader(lookup);
