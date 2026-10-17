@@ -51,7 +51,7 @@ class ForgeBootstrap {
         var seq = Vars.mods.list();
         var orig = Vars.mods.getMod(ForgeMod.class);
         seq.remove(orig);
-        seq.add(newMod);
+        seq.add(copyLoadedMod(orig));
     }
     
     private void clientLoadedListener() {
