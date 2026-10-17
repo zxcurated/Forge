@@ -30,21 +30,22 @@ class ClassesLoader {
     }
     
     void initializeClasses() {
-        Lookup lookup = MethodHandles.lookup();
         for (Class<?> clazz : classes) {
             try {
-                initialize(clazz, clazz.getModifiers(), lookup);
+                initialize(clazz, clazz.getModifiers());
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
         }
     }
-   
-    private void initialize(Class<?> clazz, int mod, Lookup lookup) throws IllegalAccessException {
-        if (!Modifier.isPublic(mod)) {
-            lookup = MethodHandles.privateLookupIn(clazz, lookup);
+    
+    private void initialize(Class<?> clazz, int mod) throws IllegalAccessException {
+        if (Modifier.isPublic(mod)) {
+            lookup.ensureInitialized(clazz);
+        } else {
+            MethodHandles.privateLookupIn(clazz, lookup)
+                .ensureInitialized(clazz);
         }
-        lookup.ensureInitialized(clazz);
     }
     
     private static ZipFile forgeZipFile() throws IOException {
