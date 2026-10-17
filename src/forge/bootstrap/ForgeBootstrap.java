@@ -47,11 +47,17 @@ class ForgeBootstrap {
         clientLoaded();
     }
     
-    private void replaceLoadedMod() {
-        var seq = Vars.mods.list();
-        var orig = Vars.mods.getMod(ForgeMod.class);
-        seq.remove(orig);
-        seq.add(copyLoadedMod(orig));
+    @SuppressWarnings("deprecation")
+    private void replaceModMain() {
+        try {
+            var mod = Vars.mods.getMod("forge");
+            Field field = LoadedMod.class.getDeclaredField("main");
+            Unsafe unsafe = Reflect.get(Unsafe.class, "theUnsafe");
+            long offset = unsafe.objectFieldOffset(field);
+            unsafe.putObject(mod, offset, new Forge());
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
     }
     
     private void clientLoadedListener() {
