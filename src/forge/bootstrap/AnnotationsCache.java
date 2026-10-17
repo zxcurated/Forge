@@ -12,6 +12,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
 class AnnotationsCache {
     private static final int
@@ -67,9 +68,8 @@ class AnnotationsCache {
     }
     
     private void deleteCache() {
-        Fi annotationsDir = dir.child("annotations/");
-        if (annotationsDir.exists()) {
-            annotationsDir.deleteDirectory();
+        if (dir.exists()) {
+            dir.deleteDirectory();
         }
     }
     
@@ -149,6 +149,11 @@ class AnnotationsCache {
     
     private void writeConsumer(BinWriter writer, int index) {
         writeMember(writer, consumersPool[index]);
+        writer.writeString(consumerType(consumersPool[index]));
+    }
+    
+    private String consumerType(Method consumer) {
+        return consumer.getParameterTypes()[0].getSimpleName();
     }
     
     private void writeConsumedMembers() {
@@ -168,7 +173,29 @@ class AnnotationsCache {
         );
     }
     
-    private byte[] findInTypes(Object member) {
+    private void writeMember(BinWriter writer, Object member) {
+        if (member instanceof Class<?> clazz) {
+            writer.writeByte(IN_CLASSES_POOL);
+            writer.writeByte(classIndex(clazz));
+        } else {
+            byte[] indexes = findInTypesPool(member);
+            if (indexes != null) {
+                writer.writeByte(IN_TYPES_POOL);
+                writeMemberIndexes(writer, indexes);
+            } else {
+                byte index = findInMembersPool(member);
+                if (index != 0) {
+                    writer.writeByte(IN_MEMBERS_POOL);
+                    writer.writeByte(index);
+                } else {
+                    writer.writeByte(NOT_IN_POOL);
+                    writeRawMember(writer, member);
+                }
+            }
+        }
+    }
+    
+    private byte[] findInTypesPool(Object member) {
         var clazz = declaringClass(member);
         for (byte i = 0; i < typesPool.length; i++) {
             if (declaringClass(typesPool[i][0]) == clazz) {
@@ -183,18 +210,13 @@ class AnnotationsCache {
         return null;
     }
     
-    private void writeMember(BinWriter writer, Object member) {
-        writer.writeByte(getTypeFlag(member));
-        if (member instanceof Class<?> clazz) {
-            writer.writeByte(classIndex(clazz));
-        } else {
-            byte[] indexes = findInTypes(member);
-            if (indexes != null) {
-                writeMemberIndexes(writer, indexes);
-            } else {
-                writeRawMember(writer, member);
+    private byte findInMembersPool(Object member) {
+        for (byte i = 0; i < membersPool.length; i++) {
+            if (member == membersPool[i]) {
+                return i;
             }
         }
+        return 0;
     }
     
     private void writeMemberIndexes(BinWriter writer, byte[] indexes) {
@@ -205,7 +227,7 @@ class AnnotationsCache {
     private void writeRawMember(BinWriter writer, Object member) {
         writer.writeByte(declaringClassIndex(member));
         writer.writeByte(getTypeFlag(member));
-        writer.writeInt(member.hashCode());
+        writer.writeInt(member instanceof Method method ? methodHashCode(method) : member.hashCode());
     }
     
     private byte classIndex(Class<?> clazz) {
@@ -327,10 +349,20 @@ class AnnotationsCache {
         Class<?> clazz = classesPool[reader.readByte()];
         Object[] members = typeFromClass(reader, clazz);
         int hashCode = reader.readInt();
-        for (Object member : members)
-            if (member.hashCode() == hashCode)
-                return member;
+        if (members instanceof Method[] methods) {
+            for (var method : methods)
+                if (hashCode == methodHashCode(method))
+                    return method;
+        } else {
+            for (var member : members)
+                if (member.hashCode() == hashCode)
+                    return member;
+        }
         throw new AnnotationsCacheException("Not found member with hashCode " + hashCode + " in " + clazz);
+    }
+    
+    private int methodHashCode(Method method) {
+        return method.hashCode() ^ Arrays.hashCode(method.getParameterTypes());
     }
     
     private Object fromTypesPool(BinReader reader) {
