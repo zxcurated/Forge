@@ -61,13 +61,6 @@ class ForgeBootstrap {
         });
     }
     
-    private static void removeClientLoadEvent() {
-        Core.app.post(() ->
-            Reflect.<ObjectMap<Object, Seq<Cons<?>>>>get(Events.class, "events")
-                .remove(ClientLoadEvent.class)
-        );
-    }
-    
     private synchronized void notifyLock() {
         isLoaded = true;
         notify();
