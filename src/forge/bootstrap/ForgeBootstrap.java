@@ -15,15 +15,15 @@ import sun.misc.Unsafe;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.util.concurrent.CountDownLatch;
 
 @SuppressWarnings("unused")
 public class ForgeBootstrap extends Mod {
     private final Lookup lookup = MethodHandles.lookup();
-    private final CountDownLatch latch = new CountDownLatch(1);
     
     private final ClassesInitializer initializer = new ClassesInitializer(lookup);
     private final AnnotationsCache annotationsCache = new AnnotationsCache();
+    
+    private Thread thread;
     
     public ForgeBootstrap() {
         startAsyncLoad();
@@ -43,21 +43,25 @@ public class ForgeBootstrap extends Mod {
     }
     
     private void startAsyncLoad() {
-        Thread.ofVirtual()
+        thread = Thread.ofVirtual()
             .name("forge-loading")
             .uncaughtExceptionHandler((t, e) -> Core.app.post(() -> { throw new RuntimeException(e); }))
-            .start(this::asyncLoad);
-    }
-    
-    private void asyncLoad() {
-        load();
-        latch.countDown();
+            .start(this::load);
     }
     
     private void clientLoadedEvent() {
-        waitLatch();
+        joinThread();
         replaceModMain();
         clientLoaded();
+    }
+    
+    private void joinThread() {
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
     }
     
     @SuppressWarnings("deprecation")
@@ -78,15 +82,6 @@ public class ForgeBootstrap extends Mod {
             clientLoadedEvent();
             removeClientLoadEvent();
         });
-    }
-    
-    private void waitLatch() {
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
     }
     
     private static void removeClientLoadEvent() {
