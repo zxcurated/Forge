@@ -1,11 +1,15 @@
 package forge.bootstrap;
 
 import arc.struct.Seq;
+import forge.annotations.bootstrap.AnnotationConsumer;
+import forge.annotations.bootstrap.Initializer;
 import forge.annotations.bootstrap.Static;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -14,11 +18,11 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-class ClassesLoader {
+class ClassesInitializer {
     final Lookup lookup;
     Class<?>[] classes;
     
-    ClassesLoader(Lookup lookup) {
+    ClassesInitializer(Lookup lookup) {
         this.lookup = lookup;
     }
     
@@ -40,6 +44,15 @@ class ClassesLoader {
         }
     }
     
+    @AnnotationConsumer
+    public static void initializerConsumer(Initializer ignored, Method method) {
+        try {
+            method.invoke(null);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void initialize(Class<?> clazz) throws IllegalAccessException {
         if (Modifier.isPublic(clazz.getModifiers())) {
             lookup.ensureInitialized(clazz);
@@ -56,7 +69,7 @@ class ClassesLoader {
     }
     
     private void extractClasses(ZipFile zip, Seq<Class<?>> classes) {
-        ClassLoader loader = ClassesLoader.class.getClassLoader();
+        ClassLoader loader = ClassesInitializer.class.getClassLoader();
         for (ZipEntry entry : forgePackageEntries(zip)) {
             var clazz = classForName(entry.getName(), loader);
             checkStaticMark(clazz);
@@ -84,7 +97,7 @@ class ClassesLoader {
     
     private static ZipFile forgeZipFile() throws IOException {
         try { // jar of this class
-            URI uri = ClassesLoader.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+            URI uri = ClassesInitializer.class.getProtectionDomain().getCodeSource().getLocation().toURI();
             return new ZipFile(Path.of(uri).toFile());
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);

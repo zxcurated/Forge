@@ -15,13 +15,14 @@ import sun.misc.Unsafe;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.util.concurrent.CountDownLatch;
 
 public class ForgeBootstrap extends Mod {
     private final Lookup lookup = MethodHandles.lookup();
-    private final ClassesLoader classesLoader = new ClassesLoader(lookup);
-    private final AnnotationsCache annotationsCache = new AnnotationsCache();
+    private final CountDownLatch latch = new CountDownLatch(1);
     
-    private boolean isLoaded = false;
+    private final ClassesInitializer initializer = new ClassesInitializer(lookup);
+    private final AnnotationsCache annotationsCache = new AnnotationsCache();
     
     public ForgeBootstrap() {
         startAsyncLoad();
@@ -30,25 +31,30 @@ public class ForgeBootstrap extends Mod {
     
     // virtual thread
     private void load() {
-        classesLoader.loadClasses();
-        annotationsCache.loadAnnotations(classesLoader.classes);
+        initializer.loadClasses();
+        annotationsCache.loadAnnotations(initializer.classes);
     }
     
     // main thread
     private void clientLoaded() {
-        classesLoader.initializeClasses();
+        initializer.initializeClasses();
         annotationsCache.invokeConsumers();
     }
     
     private void startAsyncLoad() {
-        Thread.ofVirtual().start(() -> {
-            load();
-            notifyLock();
-        });
+        Thread.ofVirtual()
+            .name("forge-loading")
+            .uncaughtExceptionHandler((t, e) -> Core.app.post(() -> { throw new RuntimeException(e); }))
+            .start(this::asyncLoad);
+    }
+    
+    private void asyncLoad() {
+        load();
+        latch.countDown();
     }
     
     private void clientLoadedEvent() {
-        waitLock();
+        waitLatch();
         replaceModMain();
         clientLoaded();
     }
@@ -73,19 +79,12 @@ public class ForgeBootstrap extends Mod {
         });
     }
     
-    private synchronized void notifyLock() {
-        isLoaded = true;
-        notify();
-    }
-    
-    private synchronized void waitLock() {
-        while (!isLoaded) {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
+    private void waitLatch() {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
     }
     
