@@ -17,6 +17,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.util.concurrent.CountDownLatch;
 
+@SuppressWarnings("unused")
 public class ForgeBootstrap extends Mod {
     private final Lookup lookup = MethodHandles.lookup();
     private final CountDownLatch latch = new CountDownLatch(1);
