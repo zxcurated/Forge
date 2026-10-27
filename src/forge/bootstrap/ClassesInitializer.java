@@ -36,19 +36,14 @@ class ClassesInitializer {
     
     void initializeClasses() {
         for (Class<?> clazz : classes) {
-            try {
-                initialize(clazz);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
+            tryInitialize(clazz);
         }
     }
     
-    @AnnotationConsumer
-    public static void initializerConsumer(Initializer ignored, Method method) {
+    private void tryInitialize(Class<?> clazz) {
         try {
-            method.invoke(null);
-        } catch (IllegalAccessException | InvocationTargetException e) {
+            initialize(clazz);
+        } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
@@ -87,11 +82,17 @@ class ClassesInitializer {
 
     private void checkStaticMark(Class<?> clazz) {
         if (clazz.getAnnotation(Static.class) != null) {
-            try {
-                initialize(clazz);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
+            tryInitialize(clazz);
+        }
+    }
+    
+    @AnnotationConsumer
+    private static void initializerConsumer(Initializer ignored, Method initializer) {
+        try {
+            initializer.setAccessible(true);
+            initializer.invoke(null);
+        } catch (InvocationTargetException | IllegalAccessException e) {
+            throw new RuntimeException(e);
         }
     }
     
