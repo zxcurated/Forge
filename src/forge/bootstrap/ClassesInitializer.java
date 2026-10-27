@@ -1,42 +1,91 @@
 package forge.bootstrap;
 
 import arc.struct.Seq;
+import arc.util.Log;
+import arc.util.Nullable;
+import forge.Forge;
 import forge.annotations.bootstrap.AnnotationConsumer;
 import forge.annotations.bootstrap.Initializer;
 import forge.annotations.bootstrap.Static;
+import forge.bootstrap.Main.Bootstrap;
+import forge.util.Reflex;
+import forge.util.io.AtomicFiles;
+import forge.util.io.RAF;
+import mindustry.Vars;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 class ClassesInitializer {
+    private static final String CLASSES_FILE = "classes.bin";
+    
     final Lookup lookup;
     Class<?>[] classes;
+    
+    private final ClassLoader loader = Vars.mods.mainLoader();
+    @Nullable
+    private ZipFile zip;
+    
     
     ClassesInitializer(Lookup lookup) {
         this.lookup = lookup;
     }
     
-    void loadClasses() {
-        try (ZipFile zip = forgeZipFile()) {
-            classes = classesArray(zip);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    void loadClasses(Bootstrap bootstrap) {
+        File file = new File(bootstrap.cacheDir + CLASSES_FILE);
+        if (Forge.updated || !tryReadClasses(file)) {
+            classesFromZip();
+            writeClasses(file);
         }
     }
     
     void initializeClasses() {
         for (Class<?> clazz : classes) {
             tryInitialize(clazz);
+        }
+    }
+    
+    private boolean tryReadClasses(File file) {
+        try {
+            readClasses(file);
+            return true;
+        } catch (IOException e) {
+            if (!(e instanceof FileNotFoundException))
+                Log.err(e);
+            return false;
+        }
+    }
+    
+    private void readClasses(File file) throws IOException {
+        AtomicFiles.read(file, raf -> {
+            classes = Arrays.stream(RAF.readStringArray(raf)).map(this::classForName).toArray(Class[]::new);
+        });
+    }
+    
+    private void writeClasses(File file) {
+        AtomicFiles.write(file, raf -> {
+            RAF.writeStringArray(raf, Arrays.stream(classes).map(Class::getName).toArray(String[]::new));
+        });
+    }
+    
+    private void classesFromZip() {
+        try (var zip = forgeZipFile()) {
+            this.zip = zip;
+            classes = extractClassesArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
     
@@ -57,24 +106,23 @@ class ClassesInitializer {
         }
     }
     
-    private Class<?>[] classesArray(ZipFile zip) {
+    private Class<?>[] extractClassesArray() {
         var seq = new Seq<Class<?>>();
-        extractClasses(zip, seq);
+        extractClasses(seq);
         return toClassesArray(seq);
     }
     
-    private void extractClasses(ZipFile zip, Seq<Class<?>> classes) {
-        ClassLoader loader = ClassesInitializer.class.getClassLoader();
-        for (ZipEntry entry : forgePackageEntries(zip)) {
-            var clazz = classForName(entry.getName(), loader);
+    private void extractClasses(Seq<Class<?>> classes) {
+        for (ZipEntry entry : forgePackageEntries()) {
+            var clazz = classForName(formatClassName(entry.getName()));
             checkStaticMark(clazz);
             classes.add(clazz);
         }
     }
     
-    private Class<?> classForName(String name, ClassLoader loader) {
+    private Class<?> classForName(String name) {
         try {
-            return Class.forName(formatClassName(name), false, loader);
+            return Class.forName(name, false, loader);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -86,14 +134,14 @@ class ClassesInitializer {
         }
     }
     
+    private ZipEntry[] forgePackageEntries() {
+        return filterForgePackage(zip.stream())
+            .toArray(ZipEntry[]::new);
+    }
+    
     @AnnotationConsumer
     private static void initializerConsumer(Initializer ignored, Method initializer) {
-        try {
-            initializer.setAccessible(true);
-            initializer.invoke(null);
-        } catch (InvocationTargetException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
+        Reflex.invokePrivateStatic(initializer);
     }
     
     private static ZipFile forgeZipFile() throws IOException {
@@ -111,11 +159,6 @@ class ClassesInitializer {
         return array;
     }
     
-    private static ZipEntry[] forgePackageEntries(ZipFile zip) {
-        return filterForgePackage(zip.stream())
-            .toArray(ZipEntry[]::new);
-    }
-    
     private static Stream<? extends ZipEntry> filterForgePackage(Stream<? extends ZipEntry> stream) {
         return stream.filter(entry -> {
             String name = entry.getName();
@@ -127,5 +170,10 @@ class ClassesInitializer {
         return name
             .substring(0, name.length() - 6)
             .replace("/", ".");
+    }
+    
+    private static void logIfFileFound(IOException e) {
+        if (!(e instanceof FileNotFoundException))
+            Log.err(e);
     }
 }

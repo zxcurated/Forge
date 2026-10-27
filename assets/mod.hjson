@@ -5,10 +5,10 @@ author: J7
 subtitle: Hello World!
 description: Hi Wrl!
 
-main: forge.bootstrap.ForgeBootstrap
+main: forge.bootstrap.Main
 repo: zxcurated/Forge
 
-version: test
+version: 0.1
 minGameVersion: 154
 
 java: true
